@@ -17,8 +17,9 @@ import obfsproxy.common.heartbeat as heartbeat
 import obfsproxy.managed.server as managed_server
 import obfsproxy.managed.client as managed_client
 from obfsproxy import __version__
+from obfsproxy.common import settings
 
-from pyptlib.util import checkClientMode
+from pyptlib.util import checkClientMode, parse_addr_spec
 
 from twisted.internet import task # for LoopingCall
 
@@ -42,6 +43,10 @@ def set_up_cli_parsing():
     parser.add_argument('--no-safe-logging', action='store_true',
                         default=False,
                         help='disable safe (scrubbed address) logging')
+
+    parser.add_argument('--socks-address', action='store', dest='socks_address',
+                        help='SOCKS host:port')
+
 
     # Managed mode is a subparser for now because there are no
     # optional subparsers: bugs.python.org/issue9253
@@ -92,6 +97,8 @@ def consider_cli_args(args):
         log.disable_logs()
     if args.no_safe_logging:
         log.set_no_safe_logging()
+    if args.socks_address:
+        settings.config.socks_address = args.socks_address
 
     # validate:
     if (args.name == 'managed') and (not args.log_file) and (args.log_min_severity):

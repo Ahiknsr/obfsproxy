@@ -1,8 +1,12 @@
+from txsocksx.client import SOCKS5ClientEndpoint
+
 from twisted.internet import reactor
 from twisted.internet.protocol import Protocol, Factory
+from twisted.internet.endpoints import TCP4ClientEndpoint
 
 import obfsproxy.common.log as logging
 import obfsproxy.common.heartbeat as heartbeat
+from obfsproxy.common import settings
 
 import obfsproxy.network.buffer as obfs_buf
 import obfsproxy.transports.base as base
@@ -361,7 +365,20 @@ class StaticDestinationServerFactory(Factory):
 
         # XXX instantiates a new factory for each client
         clientFactory = StaticDestinationClientFactory(circuit, self.mode)
-        reactor.connectTCP(self.remote_host, self.remote_port, clientFactory)
+        socks_host, socks_port = settings.config.socks_address.split(":")
+        socks_port = int(socks_port)
+
+        log.debug("Connecting to socks proxy %s:%s" % (socks_host, socks_port))
+        TCPPoint = TCP4ClientEndpoint(reactor, socks_host, socks_port)
+
+        SOCKSPoint = SOCKS5ClientEndpoint(self.remote_host,
+                    self.remote_port, TCPPoint)
+
+        d = SOCKSPoint.connect(clientFactory)
+        @d.addErrback
+        def err(error):
+            log.error("There was an error")
+            log.exception(error)
 
         return StaticDestinationProtocol(circuit, self.mode, addr)
 
