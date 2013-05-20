@@ -367,23 +367,45 @@ class StaticDestinationServerFactory(Factory):
         clientFactory = StaticDestinationClientFactory(circuit, self.mode)
 
         if settings.config.socks_address:
-            socks_host, socks_port = settings.config.socks_address.split(":")
-            socks_port = int(socks_port)
-
-            log.debug("Connecting to socks proxy %s:%s" % (socks_host, socks_port))
-            TCPPoint = TCP4ClientEndpoint(reactor, socks_host, socks_port)
-
-            SOCKSPoint = SOCKS5ClientEndpoint(self.remote_host,
-                        self.remote_port, TCPPoint)
-
-            d = SOCKSPoint.connect(clientFactory)
-            @d.addErrback
-            def err(error):
-                log.error("There was an error")
-                log.exception(error)
+            create_socks_client(self.remote_host, self.remote_port,
+                    settings.config.socks_address,
+                    klass_instance=clientFactory)
         else:
             log.debug("Not using a SOCKS proxy")
             reactor.connectTCP(self.remote_host, self.remote_port, clientFactory)
 
         return StaticDestinationProtocol(circuit, self.mode, addr)
 
+def create_socks_client(host, port, socks_address, klass=None, klass_args=None):
+    """
+    host:
+        the host of the final destination
+    port:
+        the port number of the final destination
+    socks_address:
+        the address of the socks server as a string "host:port"
+    klass:
+        is either a class or instance
+    klass_args:
+        if specified klass will be treated as a class and will be passed to the class constructor
+
+    Returns a deferred that will fire when the connection to the SOCKS server has been established.
+    """
+    socks_host, socks_port = socks_address.split(":")
+    socks_port = int(socks_port)
+
+    log.debug("Connecting to socks proxy %s:%s" % (socks_host, socks_port))
+    TCPPoint = TCP4ClientEndpoint(reactor, socks_host, socks_port)
+
+    SOCKSPoint = SOCKS5ClientEndpoint(host,
+                port, TCPPoint)
+    if klass_args:
+        d = SOCKSPoint.connect(klass(klass_args))
+    else:
+        d = SOCKSPoint.connect(klass)
+    @d.addErrback
+    def err(error):
+        log.error("There was an error")
+        log.exception(error)
+
+    return d

@@ -1,11 +1,14 @@
 import csv
+from txsocksx.client import SOCKS5ClientEndpoint
 
 from twisted.protocols import socks
 from twisted.internet.protocol import Factory
+from twisted.internet.endpoints import TCP4ClientEndpoint
 
 import obfsproxy.common.log as logging
 import obfsproxy.network.network as network
 import obfsproxy.transports.base as base
+from obfsproxy.common import settings
 
 log = logging.get_obfslogger()
 
@@ -147,6 +150,12 @@ class SOCKSv4Protocol(socks.SOCKSv4, network.GenericProtocol):
     def connectionLost(self, reason):
         network.GenericProtocol.connectionLost(self, reason)
 
+    def connectClass(self, host, port, klass, *args):
+        if settings.config.socks_address:
+            return network.create_socks_client(host, port, settings.config.socks_address, klass, *args)
+        else:
+            return socks.SOCKSv4(self, host, port, klass, *args)
+
 class SOCKSv4Factory(Factory):
     """
     A SOCKSv4 factory.
@@ -167,3 +176,4 @@ class SOCKSv4Factory(Factory):
         circuit = network.Circuit(self.transport_class())
 
         return SOCKSv4Protocol(circuit)
+
