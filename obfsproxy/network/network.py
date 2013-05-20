@@ -365,20 +365,25 @@ class StaticDestinationServerFactory(Factory):
 
         # XXX instantiates a new factory for each client
         clientFactory = StaticDestinationClientFactory(circuit, self.mode)
-        socks_host, socks_port = settings.config.socks_address.split(":")
-        socks_port = int(socks_port)
 
-        log.debug("Connecting to socks proxy %s:%s" % (socks_host, socks_port))
-        TCPPoint = TCP4ClientEndpoint(reactor, socks_host, socks_port)
+        if settings.config.socks_address:
+            socks_host, socks_port = settings.config.socks_address.split(":")
+            socks_port = int(socks_port)
 
-        SOCKSPoint = SOCKS5ClientEndpoint(self.remote_host,
-                    self.remote_port, TCPPoint)
+            log.debug("Connecting to socks proxy %s:%s" % (socks_host, socks_port))
+            TCPPoint = TCP4ClientEndpoint(reactor, socks_host, socks_port)
 
-        d = SOCKSPoint.connect(clientFactory)
-        @d.addErrback
-        def err(error):
-            log.error("There was an error")
-            log.exception(error)
+            SOCKSPoint = SOCKS5ClientEndpoint(self.remote_host,
+                        self.remote_port, TCPPoint)
+
+            d = SOCKSPoint.connect(clientFactory)
+            @d.addErrback
+            def err(error):
+                log.error("There was an error")
+                log.exception(error)
+        else:
+            log.debug("Not using a SOCKS proxy")
+            reactor.connectTCP(self.remote_host, self.remote_port, clientFactory)
 
         return StaticDestinationProtocol(circuit, self.mode, addr)
 
