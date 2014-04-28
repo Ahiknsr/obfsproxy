@@ -1,4 +1,5 @@
 import csv
+from _csv import Error as csvError
 
 from twisted.internet import reactor, protocol
 
