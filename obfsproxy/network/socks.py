@@ -3,10 +3,10 @@ import csv
 from twisted.internet import reactor, protocol
 
 import obfsproxy.common.log as logging
+import obfsproxy.common.transport_config as transport_config
 import obfsproxy.network.network as network
 import obfsproxy.network.socks5 as socks5
 import obfsproxy.transports.base as base
-
 
 log = logging.get_obfslogger()
 
@@ -65,6 +65,13 @@ class OBFSSOCKSv5Outgoing(socks5.SOCKSv5Outgoing, network.GenericProtocol):
         self.buffer.write(data)
         self.circuit.dataReceived(self.buffer, self)
 
+
+class MySOCKSv4Outgoing(OBFSSOCKSv5Outgoing):
+    def __init__(self, *args, **kw):
+        log.warning("MySOCKSv4Outgoing is deprecated. "
+                    "Should be replaced with OBFSSOCKSv5Outgoing.")
+        super(MySOCKSv4Outgoing, self).__init__(*args, **kw)
+
 class OBFSSOCKSv5OutgoingFactory(protocol.Factory):
     """
     A OBFSSOCKSv5OutgoingFactory, used only when connecting via a proxy
@@ -81,6 +88,7 @@ class OBFSSOCKSv5OutgoingFactory(protocol.Factory):
 
     def clientConnectionLost(self, connector, reason):
         self.socks.transport.loseConnection()
+
 
 class OBFSSOCKSv5Protocol(socks5.SOCKSv5Protocol, network.GenericProtocol):
     """
@@ -161,6 +169,15 @@ class OBFSSOCKSv5Protocol(socks5.SOCKSv5Protocol, network.GenericProtocol):
         self.circuit.setDownstreamConnection(otherConn)
         self.circuit.setUpstreamConnection(self)
 
+
+class SOCKSv4Protocol(OBFSSOCKSv5Protocol):
+    def __init__(self, circuit):
+        log.warning("SOCKSv4Protocol is deprecated. "
+                    "Should be replaced with OBFSSOCKSv5Protocol.")
+        pt_config = transport_config.TransportConfig()
+        super(SOCKSv4Protocol, self).__init__(circuit, pt_config)
+
+
 class OBFSSOCKSv5Factory(protocol.Factory):
     """
     A SOCKSv5 factory.
@@ -182,3 +199,10 @@ class OBFSSOCKSv5Factory(protocol.Factory):
         circuit = network.Circuit(self.transport_class())
 
         return OBFSSOCKSv5Protocol(circuit, self.pt_config)
+
+
+class SOCKSv4Factory(OBFSSOCKSv5Factory):
+    def __init__(self, *arg, **kw):
+        log.warning("SOCKSv4Factory is deprecated. "
+                    "Should be replaced with OBFSSOCKSv5Factory.")
+        super(SOCKSv4Factory, self).__init__(*arg, **kw)
